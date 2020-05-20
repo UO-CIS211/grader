@@ -1,6 +1,22 @@
-# Grader script for Canvas exams
+# Grader script for Python coding exams in Canvas
 
-This script is designed to test and excerpt a batch of Python programs downloaded from Canvas.  It was designed initially for exams in CIS 211 at U. Oregon in winter and spring 2020, but might be adapted for other coursework.  
+
+This script is designed to test and excerpt a batch of Python programs downloaded from Canvas.  It was designed initially for exams in CIS 211 at U. Oregon in winter and spring 2020, but might be adapted for other coursework in computer science. 
+
+The current version of `grader.py` is specific to 
+Python version 3 and the `unittest` testing framework. 
+It is likely that it could be generalized, but I don't
+want to do so until I have a specific use case to guide 
+the work.  Contact me (michal@cs.uoregon.edu) if you 
+are interested in working with me on making it work 
+for program submissions in other programming languages. 
+
+`grader.py` is designed for use with the SpeedGrader feature of Canvas to grade file uploads containing program source code. It might conceivably be made to work with another LMS, but not trivially, because it relies on details like the way Canvas 
+mooshes student name and file name into a file name. 
+Some parts of this script might be usable in a grading 
+script adapted to another LMS. 
+
+`grader.py` assumes you want to run student code with a test suite, and that you also want to *read the code*, or at least an excerpt of the code.  If you want to grade student programs automatically without actually looking at their code, this is probably not the script for you. 
 
 ## What it does 
 
@@ -131,3 +147,24 @@ The full list of test failures, and stack traces if any, are included.)
 ## Code Excerpt
 
 After the test results, an excerpt of the code (as specifed by the `excerpt_from` and `excerpt_to` configuration variables) is printed.  
+
+# Future Work 
+
+Several enhancements of `grader.py` are possible. Here are some currently planned or under consideration: 
+
+* Excerpt multiple sections of source code
+
+* Do a better job of parsing multi-part student names
+
+* Run in a Docker container to protect against malicious student submissions
+
+* Make timeout configurable
+
+* Make test program name configurable
+
+* Allow multiple test programs
+
+* More flexible configuration of the test invocation, not specific to Python 3 on Mac OS X. 
+
+Other fixes and enhancements are possible ... contact 
+michal@cs.uoregon.edu
