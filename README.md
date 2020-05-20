@@ -1,0 +1,72 @@
+# Grader script for Canvas exams
+
+This script is designed to test and excerpt a batch of Python programs downloaded from Canvas.  It was designed initially for exams in CIS 211 at U. Oregon in winter and spring 2020, but might be adapted for other coursework.  
+
+## What it does 
+
+The script expects to find a subdirectory
+called `submissions` containing code submitted by students.  These could be files uploaded in response to multiple problems, as is the case when grading a 
+CIS 211 exam.  Within the submissions directory as 
+provided by Canvas, the name of each submitted file is a mashup of student name, submitted file name, and various deeply secrete numbers.  The script, 
+under control of a configuration file,  is designed to select submissions for one particular problem at a time by matching part of the file name. It copies the each matching submission to a subdirectory where it expects to find a test suite. In that subdirectory it executes the test suite and gathers output.  It also scans the submission to produce an excerpt for inspection.  Output and exerpts, along with identifying information, and concatenated together in the output, which is designed to be read while using the 'speedgrader' feature of Canvas. 
+
+## Setup
+
+`submissions` (expanded from a zip file downloaded from Canvas) should be installed as a subdirectory.  Additionally, there should be a subdirectory for each 
+problem to be graded (e.g., "q1", "q2", etc for an exam).  The problem subdirectories will be the working directories for testing student submissions.  A test suite should be located in each problem subdirectory. 
+
+Edit `grader.ini` to control `grader.py` (next section). 
+
+## Configuration 
+
+`grader.py` is controlled and configured by `grader.ini`, which looks like this: 
+
+```
+[DEFAULT]
+select = Q3
+[Q1]
+glob : q1_interval       # select submission 
+canon : q1_intervals.py  # Rename submission
+dir : q1                 # problem directory
+excerpt_from : class Interval   
+excerpt_to: NONE    
+[Q2]
+glob : q2_color
+canon : q2_color_tiles.py
+dir : q2
+excerpt_from : class Color
+excerpt_to: def main()
+[Q3]
+glob : q3_shapes
+canon: q3_shapes.py
+dir: q3
+excerpt_from : class Shape
+excerpt_to : NONE
+```
+
+Note that `grader.py` permits line-ending comments, 
+contrary to typical `.ini` file formats.  
+
+In the `[DEFAULT]` section, key `select` determines the 
+section that the remainder of the configuration will 
+be drawn from.  In the example, problem `Q3` is selected, so the remainder of the configuration will 
+be drawn from section `[Q3]`.  This is because I 
+normally grade all submissions for a given problem 
+before moving on to the next problem, rather than 
+grading all problems for a given student.  
+
+`glob` is a pattern to match student submissions for a given problem.  It is a Unix file-glob pattern, so for 
+example `f1*.py` matches `smith_will_f1ghter_pilot.py_18345` 
+as well as `norris_peter_f123.py_28238`.  It is best to give a `glob` pattern that is general enough to tolerate some variation in the file names that students give, even when they do not follow directions precisely. 
+
+`canon` is a canonical name that the submitted file will be given in the working directory. Typically the test suite will refer to the student code by this name, so the renaming also helps cope with minor discrepancies in file names provided by students. 
+
+`dir` is the working directory for a particular problem, i.e., where the test suite will be found and where the canonically named student submission will be placed. 
+
+`excerpt_from` and `excerpt_to` are patterns designed to match lines in the submitted source code.  Lines between those matches, but not including the `excerpt_to` match, will be included in the grader output.   If you desire to read code to the end of the submitted file, as a special case `NONE` can be specified as the `excerpt_to` pattern.  Note that 
+patterns may contain spaces but should not contain 
+`#`, which would be treated as a comment in the `.ini` 
+file. 
+
+
+ 
