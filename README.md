@@ -69,4 +69,65 @@ patterns may contain spaces but should not contain
 file. 
 
 
- 
+# Output
+
+The output will be a sequence of results in alphabetical order by student surname.  Each set of 
+results will include identifying information, 
+test results, and code excerpt.  
+
+## Identifying information 
+
+The first part of test results for a student look 
+like this: 
+
+```
+-----------------------------------------
+lastname, firstname => 	submissions/lastname_firstname93966_question_2053772_8680838_q1_tree_height.py
+```
+
+If a student has a multi-part surname, like *de la rossa*, the script may mistake parts of the surname for a given name. 
+
+## Test results 
+
+The identifying information is followed by the output of the test suite.  Typically it will look like this:
+
+```
+Return code: 0
+Stderr: ....
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+OK
+```
+
+Sometimes, however, it may look like this: 
+
+```
+Interrupted:  Command '['python3', 'q1/test_q1.py']' timed out after 3 seconds
+```
+
+or like this 
+
+```
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "q1/test_q1.py", line 31, in test_4_skew_right
+    self.assertEqual(tree.min_height(), 2)
+  File "/Users/michal/Dropbox/20S-211/exams/midterm2-s20/grader/q1/q1_tree_height.py", line 44, in min_height
+    return min(self._left.min_height() +1)
+  File "/Users/michal/Dropbox/20S-211/exams/midterm2-s20/grader/q1/q1_tree_height.py", line 44, in min_height
+    return min(self._left.min_height() +1)
+TypeError: 'int' object is not iterable
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+FAILED (errors=3)
+```
+
+(I have truncated the error report in the last example.  
+The full list of test failures, and stack traces if any, are included.) 
+
+## Code Excerpt
+
+After the test results, an excerpt of the code (as specifed by the `excerpt_from` and `excerpt_to` configuration variables) is printed.  
