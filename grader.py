@@ -54,9 +54,9 @@ def check_file(submission_path: Path, rename_to: str, grading_dir: str):
     test_name = f"{grading_dir}/test_{grading_dir}.py"
     shutil.copy(source_name, dest_name)
     try:
-        execution = subprocess.run(["python3", test_name],
+        execution = subprocess.run(["python3", test_name, "-v"],
                                capture_output=True,
-                               timeout=3)
+                               timeout=5)
         print(f"Return code: {execution.returncode}")
         stderr = str(execution.stderr, 'utf-8', 'ignore')
         print(f"Stderr: {stderr}")
