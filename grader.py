@@ -48,10 +48,14 @@ def extract_student_name(path: Path) -> str:
     raise ValueError(f"Couldn't extract student name from {filename}")
 
 
-def check_file(submission_path: Path, rename_to: str, grading_dir: str):
+def check_file(submission_path: Path,
+               rename_to: str,
+               grading_dir: str,
+               test_name: str):
     source_name = str(submission_path)
     dest_name = f"{grading_dir}/{rename_to}"
-    test_name = f"{grading_dir}/test_{grading_dir}.py"
+    # test_name = f"{grading_dir}/test_{grading_dir}.py"
+    test_name = f"{grading_dir}/{test_name}"
     shutil.copy(source_name, dest_name)
     try:
         execution = subprocess.run(["python3", test_name, "-v"],
@@ -100,6 +104,7 @@ def main():
         subdir = config[problem]["dir"]
         excerpt_from = config[problem]["excerpt_from"]
         excerpt_to = config[problem]["excerpt_to"]
+        test_name = config[problem]["tests"]
     except KeyError as e:
         log.warning(f"{e}\nMissing entry in grader.ini")
         sys.exit(8)
@@ -109,7 +114,7 @@ def main():
         name = extract_student_name(submission)
         print("\n-----------------------------------------")
         print(f"{name} => \t{submission}")
-        check_file(submission, canonical_name, subdir)
+        check_file(submission, canonical_name, subdir, test_name)
         print()
         excerpt(submission, excerpt_from, excerpt_to)
         print(f"/ {name}")
