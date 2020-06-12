@@ -112,6 +112,7 @@ def main():
         check_file(submission, canonical_name, subdir)
         print()
         excerpt(submission, excerpt_from, excerpt_to)
+        print(f"/ {name}")
         # break # DEBUG - Testing just on first entry for each
 
 
