@@ -29,7 +29,9 @@ def submissions_for_problem(q_name: str)  -> List[Path]:
     in alphabetical order
     """
     submissions = Path(f"./submissions").glob(f"*_{q_name}*.py")
-    return sorted(list(submissions), key=lambda p: str(p))
+    additions = Path(f"./additional").glob(f"*_{q_name}*.py")
+    return sorted(list(submissions) + list(additions),
+                  key=lambda p: extract_student_name(p))
 
 namepat = re.compile(
     r"""(?P<lastname> [a-z]+) _ (?P<firstname> [a-z]+)""",
@@ -88,9 +90,9 @@ def excerpt(path: Path, from_pat: str, to_pat: str):
                     print(line, end="")
 
         if not found:
-            print(" *** DID NOT FIND EXCERPT ***")
+            print("*** DID NOT FIND EXCERPT ***")
         elif copying and to_pat != "NONE":
-            print(f"*** DID NOT FIND '{to_pat}'")
+            print(f"\n*** DID NOT FIND '{to_pat}'")
     except Exception as e:
         print("*** Exception while trying to excerpt")
         print(e)
