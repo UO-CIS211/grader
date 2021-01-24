@@ -15,7 +15,7 @@ from typing import List
 import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
+log.setLevel(logging.DEBUG)
 
 def configure(filename: str) -> configparser.ConfigParser:
     """The returned object is something like a dict;
@@ -54,14 +54,6 @@ def extract_student_name(path: Path, tr_table: dict) -> str:
     realname = tr_table[namepart]
     return realname
 
-    """ Old version
-    matched = namepat.search(filename)
-    if matched:
-        gd = matched.groupdict()
-        return f"{gd['lastname']}, {gd['firstname']}"
-    raise ValueError(f"Couldn't extract student name from {filename}")
-    """
-
 def check_file(submission_path: Path,
                rename_to: str,
                grading_dir: str,
@@ -88,8 +80,75 @@ def check_file(submission_path: Path,
     except Exception as e:
         print(f"Interrupted:  {e}")
 
+def excerpt(path: Path, units: List[str]):
+    """Print excerpts of submitted code for listed units
+    (class and function names)
+    """
+    # We are looking for any of these names, as functions or classes
+    units_disjunct = "|".join(units)
+    # A class, function, or method definition is the first
+    # thing on a line.  It beings with "class" or "def", then
+    # one or more spaces followed by the name.
+    start_pat_re = f"""
+         ^(?P<indent>\\s*)             # Only indentation before it
+         (?P<kind>(class)|(def))\\s+   # A class or function
+         (?P<unit> {units_disjunct})   # with this name
+         \\W.*"""                 # Followed by anything
+    start_pat = re.compile(start_pat_re, re.VERBOSE)
+    log.debug(f"Unit scan pattern: '{start_pat_re}'")
+    next_unit_re = """
+        ^(?P<indent>\\s*)           # Only indentation before
+        (?P<kind>(class)|(def))\\s+ # then a class or function
+        (?P<unit>(\\w|_)+)          # then ANY unit name
+        .*                          # and we don't care after that
+        """
+    next_unit = re.compile(next_unit_re, re.VERBOSE)
+    log.debug(f"Unit end scan pattern: '{next_unit_re}'")
+    try:
+        f = open(path)
+        lines = iter(f)  # Allows CHUNKED for loops
+        for line in lines:
+            log.debug(f"Scanning line {line.rstrip()}")
+            found = start_pat.match(line)
+            if found:
+                log.debug(f"Starting unit '{found.groups()}'")
+                log.debug(f"Fields: '{found.groupdict()}'")
+                indent = len(found.groupdict()["indent"])
+                print(line.rstrip())
+                # Subsequent lines:  Stop when we see a new
+                # unit that is NOT indented within current unit
+                # and is NOT of interest
+                for more in lines:
+                    is_a_unit = next_unit.match(more)
+                    if not is_a_unit:
+                        print(more.rstrip())
+                        continue
+                    # We've hit another unit.  If it is indented
+                    # within this one, we just continue
+                    #DEBUG
+                    log.debug(f"Next unit '{is_a_unit.groups()}'")
+                    unit_dict = is_a_unit.groupdict()
+                    if unit_dict["indent"]:
+                        unit_indent = len(is_a_unit.groupdict()["indent"])
+                        if unit_indent > indent:
+                            print(more.rstrip())
+                            continue
+                    # It's not indented.  Is it another one we are
+                    # excerpting?
+                    is_of_interest = start_pat.search(more)
+                    if is_of_interest:
+                        print(more.rstrip())
+                        continue
+                    # It's a unit, not indented, and not of interest
+                    break
+                    # Will continue outer loop from next line
+                    # (because we're using an iterator on the lines)
+    except Exception as e:
+        print("*** Exception while trying to excerpt")
+        print(e)
 
-def excerpt(path: Path, from_pat: str, to_pat: str):
+# Obsolete?
+def old_excerpt(path: Path, from_pat: str, to_pat: str):
     """Print an excerpt of submitted code from
     from_pat to to_pat.
     """
@@ -107,14 +166,14 @@ def excerpt(path: Path, from_pat: str, to_pat: str):
                     break
                 else:
                     print(line, end="")
+    except Exception as e:
+        print("*** Exception while trying to excerpt")
+        print(e)
 
         if not found:
             print("*** DID NOT FIND EXCERPT ***")
         elif copying and to_pat != "NONE":
             print(f"\n*** DID NOT FIND '{to_pat}'")
-    except Exception as e:
-        print("*** Exception while trying to excerpt")
-        print(e)
 
 def main():
     try:
@@ -123,8 +182,9 @@ def main():
         name_glob = config[problem]["glob"]
         canonical_name = config[problem]["canon"]
         subdir = config[problem]["dir"]
-        excerpt_from = config[problem]["excerpt_from"]
-        excerpt_to = config[problem]["excerpt_to"]
+        # excerpt_from = config[problem]["excerpt_from"]
+        # excerpt_to = config[problem]["excerpt_to"]
+        units = config[problem]["excerpt_units"]
         test_name = config[problem]["tests"]
     except KeyError as e:
         log.warning(f"{e}\nMissing entry in grader.ini")
@@ -135,11 +195,11 @@ def main():
     for submission in submissions_for_problem(name_glob):
         name = extract_student_name(submission, name_table)
         print("\n-----------------------------------------")
-        print(f"{name} => \t{submission}")
+        print(f"{name} => \t{submission} (BEGIN)")
         check_file(submission, canonical_name, subdir, test_name)
         print()
-        excerpt(submission, excerpt_from, excerpt_to)
-        print(f"/ {name}")
+        excerpt(submission, units.split(","))
+        print(f"/ {name} (END)")
         # break # DEBUG - Testing just on first entry for each
 
 
