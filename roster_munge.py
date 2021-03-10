@@ -14,7 +14,7 @@ import csv
 from typing import Dict
 import configparser
 
-NAME_CRUSH = str.maketrans("", "", "-' ")
+NAME_CRUSH = str.maketrans("", "", "-_' ")  # To crush from Canvas as well as Roster
 def munge_name(s: str) -> str:
     """Canvas submission student name from Duckweb roster name.
     Examples:

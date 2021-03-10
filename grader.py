@@ -15,7 +15,7 @@ from typing import List
 import logging
 logging.basicConfig()
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 
 def configure(filename: str) -> configparser.ConfigParser:
     """The returned object is something like a dict;
@@ -37,21 +37,33 @@ def submissions_for_problem(q_name: str)  -> List[Path]:
     return sorted(list(submissions) + list(additions))
                   #key=lambda p: extract_student_name(p, tr_table))
 
-# Namepat has changed since original;
-# Now paths look like
-# bakerrozellcharles_123508_10266435_appt.py
-namepat = re.compile(
-    r"""(?P<lastname> [a-z]+) _ (?P<firstname> [a-z]+)""",
-    re.VERBOSE)
+# Canvas uses (at least) two different name munging algorithms, one
+# for projects and another for quizzes.
+# For projects: bakerrozellcharles_123508_10266435_appt.py
+# For quizzes:  baker-rozell_charles123508_question_2425285_10332159_mini_exam.py
+# For a quiz with multi-part name:
+# torres_gonzalez_isaias109036_question_2425285_10300987_mini_exam.py
+#   (that is, surname_surname_givenname)
 
+namepat = re.compile(r"""
+    ^                       # Must match at beginning of string
+    (?P<name> [-a-z_]+)     # Can match multi-part surnames, including dashes
+""", re.VERBOSE
+)
+
+#
+#
 def extract_student_name(path: Path, tr_table: dict) -> str:
     """We are given the path to a Canvas submission.
     We return lastname, firstname extracted from a prefix
     of that path
     """
     filename = str(path.stem)
-    namepart = filename.split("_")[0]
-    realname = tr_table[namepart]
+    name_match =  namepat.match(filename)
+    assert name_match
+    name_part = name_match.groupdict()["name"]
+    name_key = name_part.translate(roster_munge.NAME_CRUSH)
+    realname = tr_table[name_key]
     return realname
 
 def check_file(submission_path: Path,
