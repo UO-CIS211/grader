@@ -32,8 +32,8 @@ def submissions_for_problem(q_name: str)  -> List[Path]:
     in alphabetical order
     """
     tr_table = roster_munge.read_table()
-    submissions = Path(f"./submissions").glob(f"*_{q_name}*.py")
-    additions = Path(f"./additional").glob(f"*_{q_name}*.py")
+    submissions = Path(f"./submissions").glob(f"*{q_name}*.py")
+    additions = Path(f"./additional").glob(f"*{q_name}*.py")
     return sorted(list(submissions) + list(additions))
                   #key=lambda p: extract_student_name(p, tr_table))
 
@@ -204,7 +204,9 @@ def main():
 
     print(f"\nProblem: {name_glob} ({canonical_name})")
     name_table = roster_munge.read_table()
-    for submission in submissions_for_problem(name_glob):
+    submissions = submissions_for_problem(name_glob)
+    assert submissions, f"No match for {name_glob}"
+    for submission in submissions:
         name = extract_student_name(submission, name_table)
         print("\n-----------------------------------------")
         print(f"{name} => \t{submission} (BEGIN)")
