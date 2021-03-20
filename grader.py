@@ -209,7 +209,9 @@ def main():
     for submission in submissions:
         name = extract_student_name(submission, name_table)
         print("\n-----------------------------------------")
-        print(f"{name} => \t{submission} (BEGIN)")
+        # print(f"{name} => \t{submission} (BEGIN)")
+        # The following creates clickable file link in PyCharm run window
+        print(f"{name} => \nat {submission}:0 (BEGIN)")
         check_file(submission, canonical_name, subdir, test_name)
         print()
         excerpt(submission, units.split(","))
