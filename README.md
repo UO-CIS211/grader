@@ -31,33 +31,28 @@ under control of a configuration file,  is designed to select submissions for on
 `submissions` (expanded from a zip file downloaded from Canvas) should be installed as a subdirectory.  Additionally, there should be a subdirectory for each 
 problem to be graded (e.g., "q1", "q2", etc for an exam).  The problem subdirectories will be the working directories for testing student submissions.  A test suite should be located in each problem subdirectory. 
 
+![Directory structure](doc/dir-structure.png)
+
 Edit `grader.ini` to control `grader.py` (next section). 
 
 ## Configuration 
 
+
 `grader.py` is controlled and configured by `grader.ini`, which looks like this: 
 
 ```
+# If there are multiple
+# separate files turned in as questions, each question gets
+# a configuration section of its own.
 [DEFAULT]
-select = Q3
+select = Q1
+roster:  /Users/michal/Dropbox/21W-211/admin/roster.csv
 [Q1]
-glob : q1_interval       # select submission 
-canon : q1_intervals.py  # Rename submission
-dir : q1                 # problem directory
-excerpt_from : class Interval   
-excerpt_to: NONE    
-[Q2]
-glob : q2_color
-canon : q2_color_tiles.py
-dir : q2
-excerpt_from : class Color
-excerpt_to: def main()
-[Q3]
-glob : q3_shapes
-canon: q3_shapes.py
-dir: q3
-excerpt_from : class Shape
-excerpt_to : NONE
+glob : food      # Select submission file name with this
+canon : food.py   # Rename submission file to this
+dir : tests       # The tests run in this directory
+excerpt_units : Basic,Composite  # Classes or methods to excerpt
+tests: test_food.py    # Unit tests file
 ```
 
 Note that `grader.py` permits line-ending comments, 
