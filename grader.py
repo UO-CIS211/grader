@@ -31,7 +31,7 @@ def submissions_for_problem(q_name: str)  -> List[Path]:
     """Returns a list of PosixPath objects
     in alphabetical order
     """
-    tr_table = roster_munge.read_table()
+    # tr_table = roster_munge.read_table()  # obsolete?
     submissions = Path(f"./submissions").glob(f"*{q_name}*.py")
     additions = Path(f"./additional").glob(f"*{q_name}*.py")
     return sorted(list(submissions) + list(additions))
@@ -81,7 +81,6 @@ def check_file(submission_path: Path,
     shutil.copy(source_name, dest_name)
 
     try:
-
         execution = subprocess.run(["python3", test_name, "-v"],
                                cwd=tempdir,
                                capture_output=True,
@@ -98,6 +97,7 @@ def excerpt(path: Path, units: List[str]):
     """
     # We are looking for any of these names, as functions or classes
     units_disjunct = "|".join(units)
+
     # A class, function, or method definition is the first
     # thing on a line.  It beings with "class" or "def", then
     # one or more spaces followed by the name.
@@ -108,6 +108,7 @@ def excerpt(path: Path, units: List[str]):
          \\W.*"""                 # Followed by anything
     start_pat = re.compile(start_pat_re, re.VERBOSE)
     log.debug(f"Unit scan pattern: '{start_pat_re}'")
+
     next_unit_re = """
         ^(?P<indent>\\s*)           # Only indentation before
         (?P<kind>(class)|(def))\\s+ # then a class or function
@@ -116,35 +117,66 @@ def excerpt(path: Path, units: List[str]):
         """
     next_unit = re.compile(next_unit_re, re.VERBOSE)
     log.debug(f"Unit end scan pattern: '{next_unit_re}'")
+
+    # Sometimes we want many methods with the same name, so it is
+    # useful to also record the last class name encountered
+    any_class_re = f"""
+    ^(?P<indent>\\s*)             # Only indentation before it
+         (?P<kind> class)\\s+   # A class  
+         (?P<unit> \w+)         # with this name
+         \\W.*"""                 # Followed by anything
+    any_class_pat = re.compile(any_class_re, re.VERBOSE)
+
+    recent_class = "NO CLASS"
     try:
         f = open(path)
+        line_num = 0
         lines = iter(f)  # Allows CHUNKED for loops
         for line in lines:
+            line_num += 1
             log.debug(f"Scanning line {line.rstrip()}")
             found = start_pat.match(line)
             if found:
+                fields = found.groupdict()
                 log.debug(f"Starting unit '{found.groups()}'")
-                log.debug(f"Fields: '{found.groupdict()}'")
-                indent = len(found.groupdict()["indent"])
-                print(line.rstrip())
+                log.debug(f"Fields: '{fields}'")
+                indent = len(fields["indent"])
+                # If it looks like a function, but is indented, we'll print
+                # the class it appears to belong to.  If it looks like a class,
+                # we'll remember that in case we need it later
+                # Link to original text
+                print(f"at {path}:{line_num}")
+                if fields["kind"] == "def" and indent > 0:
+                    print(f"in class '{recent_class}':")
+                elif fields["kind"] == "class":
+                    recent_class = fields["unit"]
+
+                print(line.rstrip())  # Unit header line for class or function
+
                 # Subsequent lines:  Stop when we see a new
                 # unit that is NOT indented within current unit
                 # and is NOT of interest
                 for more in lines:
+                    line_num += 1
                     is_a_unit = next_unit.match(more)
                     if not is_a_unit:
                         print(more.rstrip())
                         continue
-                    # We've hit another unit.  If it is indented
+                    # We've hit another unit. If it is indented
                     # within this one, we just continue
                     #DEBUG
                     log.debug(f"Next unit '{is_a_unit.groups()}'")
-                    unit_dict = is_a_unit.groupdict()
-                    if unit_dict["indent"]:
-                        unit_indent = len(is_a_unit.groupdict()["indent"])
+                    fields = is_a_unit.groupdict()
+                    if fields["indent"]:
+                        unit_indent = len(fields["indent"])
                         if unit_indent > indent:
                             print(more.rstrip())
                             continue
+                    # If it's a class, we take note whether or not
+                    # we are interested, because it might contain
+                    # something we are interested in.
+                    if fields["kind"] == "class":
+                        recent_class = fields["unit"]
                     # It's not indented.  Is it another one we are
                     # excerpting?
                     is_of_interest = start_pat.search(more)
@@ -155,6 +187,13 @@ def excerpt(path: Path, units: List[str]):
                     break
                     # Will continue outer loop from next line
                     # (because we're using an iterator on the lines)
+            else:
+                # Outside a unit of interest, but we take note of
+                # classes that might *contain* units of interest.
+                is_a_class = any_class_pat.match(line)
+                if is_a_class:
+                    recent_class = is_a_class.groupdict()["unit"]
+        
     except Exception as e:
         print("*** Exception while trying to excerpt")
         print(e)
@@ -209,9 +248,9 @@ def main():
     for submission in submissions:
         name = extract_student_name(submission, name_table)
         print("\n-----------------------------------------")
-        # print(f"{name} => \t{submission} (BEGIN)")
+        print(f"{name} => \t{submission} (BEGIN)")
         # The following creates clickable file link in PyCharm run window
-        print(f"{name} => \nat {submission}:0 (BEGIN)")
+        # print(f"{name} => \nat {submission}:0 (BEGIN)")
         check_file(submission, canonical_name, subdir, test_name)
         print()
         excerpt(submission, units.split(","))
