@@ -44,15 +44,15 @@ Edit `grader.ini` to control `grader.py` (next section).
 # If there are multiple
 # separate files turned in as questions, each question gets
 # a configuration section of its own.
-[DEFAULT]
-select = Q1
+[[DEFAULT]
+select = Compiler
 roster:  /Users/michal/Dropbox/21W-211/admin/roster.csv
-[Q1]
-glob : food      # Select submission file name with this
-canon : food.py   # Rename submission file to this
-dir : tests       # The tests run in this directory
-excerpt_units : Basic,Composite  # Classes or methods to excerpt
-tests: test_food.py    # Unit tests file
+[Compiler]
+glob : expr,context                 # Select submission file name with this
+canon : expr.py,codegen_context.py   # Rename submission file to this
+dir : tests                          # The tests run in this directory
+excerpt_units : gen,LT
+tests: compile.py
 ```
 
 Note that `grader.py` permits line-ending comments, 
