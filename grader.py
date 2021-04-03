@@ -10,7 +10,7 @@ import subprocess
 import sys
 import re
 import os
-from typing import List
+from typing import List, Tuple
 
 import logging
 logging.basicConfig()
@@ -27,15 +27,92 @@ def configure(filename: str) -> configparser.ConfigParser:
     return conf
 
 
-def submissions_for_problem(q_name: str)  -> List[Path]:
-    """Returns a list of PosixPath objects
-    in alphabetical order
+def submissions_for_problem(q_name: List[str])  -> List[Tuple[str, List[Path]]]:
+    """q_name could be ["expr", "codegen_context"]
+    Corresponding element in result could be
+    ("Garcia Perez, Salvador", ["garciaperezsalvador_106692_10867445_expr-2.py",
+                                "garciaperezsalvador_106692_10867446_codegen_context.py"])
     """
-    # tr_table = roster_munge.read_table()  # obsolete?
-    submissions = Path(f"./submissions").glob(f"*{q_name}*.py")
-    additions = Path(f"./additional").glob(f"*{q_name}*.py")
-    return sorted(list(submissions) + list(additions))
-                  #key=lambda p: extract_student_name(p, tr_table))
+    tr_table = roster_munge.read_table()
+    submission_lists = []
+    for pattern in q_name:
+        submissions = Path(f"./submissions").glob(f"*{pattern}*.py")
+        additions = Path(f"./additional").glob(f"*{pattern}*.py")
+        column = [(extract_student_name(p, tr_table), p) for p in list(submissions) + list(additions)]
+        submission_lists.append(sorted(column))
+    # Now we should have a column for each file, in the order they appear in q_name
+    # Each entry in each column is (name, path)
+    # We need to join them on student name.
+    log.debug(f"\n***\nSubmissions before joining: {submission_lists}")
+    submissions = join_columns(submission_lists)
+    log.debug(f"\n***\nJoined submissions: {submissions}")
+    return submissions
+
+def join_columns(cols: List[Tuple[str, Path]]) -> List[Tuple[str, List[Path]]]:
+    """Convert from [[("jon", P), ("mary", Q)], [("jon", R), ("mary, S)], ...]
+    to [("jon", [P, R, ...]), ("mary", [Q, S ...]), ...]
+    """
+    merged = [(name, [path]) for name, path in cols[0]]
+    for column in cols[1:]:
+        merged_i = 0
+        column_i = 0
+        remerged = []  #
+        # While more of both lists
+        while merged_i < len(merged) and column_i < len(column):
+            m_name, m_paths = merged[merged_i]
+            c_name, c_path = column[column_i]
+            if m_name == c_name:
+                # Name components match; merge into result
+                log.debug(f"Matched {m_name},{m_paths} to {c_name},{c_path}")
+                m_paths.append(c_path)
+                log.debug(f"Inserting {(m_name, m_paths)}")
+                remerged.append((m_name, m_paths))
+                merged_i += 1
+                column_i += 1
+            # Otherwise one or the other is missing
+            elif m_name < c_name:
+                # Missing element in column
+                log.debug(f"No match for {m_name},{m_paths}")
+                m_paths.append(None)
+                log.debug(f"Inserting {m_name, m_paths}")
+                remerged.append((m_name, m_paths))
+                merged_i += 1
+            elif c_name < m_name:
+                # Missing element in first column ... this one is harder!
+                log.debug(f"No match for {c_name}, {c_path}")
+                paths = [None for p in m_paths]
+                paths.append(c_path)
+                log.debug(f"Inserting {c_name, paths}")
+                remerged.append((c_name, paths))
+                column_i += 1
+            else:
+                assert False, "Can't happen"
+        # At end of at least one column
+        # In case we have not reached end of all
+        while merged_i < len(merged):
+            m_name, m_paths = merged[merged_i]
+            m_paths.append(None)
+            log.debug(f"Appending from merged, {m_name, m_paths}")
+            remerged.append((m_name, m_paths))
+            merged_i += 1
+        while column_i < len(column):
+            c_name, c_path = column[column_i]
+            _, sample_paths = merged[0]
+            log.debug(f"Sample paths taken from first of {merged}")
+            log.debug(f"With remerged {remerged}")
+            # Note we have been appending to merged along the
+            # way, so each row is one longer than the imaginary
+            # row we imagine matching
+            paths = [None for p in sample_paths[1:]]
+            paths.append(c_path)
+            log.debug(f"Appending from column, {c_name, paths}")
+            remerged.append((c_name, paths))
+            column_i += 1
+        ## Ready for next column
+        merged = remerged
+        log.debug(f"Merged is now {merged}")
+    return merged
+
 
 # Canvas uses (at least) two different name munging algorithms, one
 # for projects and another for quizzes.
@@ -66,20 +143,25 @@ def extract_student_name(path: Path, tr_table: dict) -> str:
     realname = tr_table[name_key]
     return realname
 
-def check_file(submission_path: Path,
-               rename_to: str,
+def check_file(submission: Tuple[str, List[Path]],
+               rename_to: List[str],
                grading_dir: str,
                test_name: str):
-    source_name = str(submission_path)
+    # source_name = str(submission_path)
     # Execute in a temporary directory with copies
     # of support files
     tempdir = f"/tmp/{grading_dir}"
     shutil.rmtree(tempdir, ignore_errors=True)
     shutil.copytree(grading_dir, tempdir)
-    dest_name = f"{tempdir}/{rename_to}"
+    student, files = submission
+    for i in range(len(files)):
+        source_name = files[i]
+        canon_name = rename_to[i]
+        if not source_name:
+            continue
+        dest_name = f"{tempdir}/{canon_name}"
+        shutil.copy(source_name, dest_name)
     test_name = f"{tempdir}/{test_name}"
-    shutil.copy(source_name, dest_name)
-
     try:
         execution = subprocess.run(["python3", test_name, "-v"],
                                cwd=tempdir,
@@ -230,8 +312,8 @@ def main():
     try:
         config = configure("grader.ini")
         problem = config["DEFAULT"]["select"]
-        name_glob = config[problem]["glob"]
-        canonical_name = config[problem]["canon"]
+        name_globs = config[problem]["glob"].split(",")
+        canonical_names = config[problem]["canon"].split(",")
         subdir = config[problem]["dir"]
         # excerpt_from = config[problem]["excerpt_from"]
         # excerpt_to = config[problem]["excerpt_to"]
@@ -241,26 +323,36 @@ def main():
         log.warning(f"{e}\nMissing entry in grader.ini")
         sys.exit(8)
 
-    print(f"\nProblem: {name_glob} ({canonical_name})")
-    name_table = roster_munge.read_table()
-    submissions = submissions_for_problem(name_glob)
-    assert submissions, f"No match for {name_glob}"
+    print(f"\nProblem: {name_globs} ({canonical_names})")
+    # name_table = roster_munge.read_table() # Now in submissions_for_problem
+    submissions = submissions_for_problem(name_globs)
+    assert submissions, f"No match for {name_globs}"
     for submission in submissions:
-        name = extract_student_name(submission, name_table)
+        # name = extract_student_name(submission, name_table)
+        name, files = submission
         print("\n-----------------------------------------")
         print(f"{name} => \t{submission} (BEGIN)")
         # The following creates clickable file link in PyCharm run window
         # print(f"{name} => \nat {submission}:0 (BEGIN)")
-        check_file(submission, canonical_name, subdir, test_name)
+        check_file(submission, canonical_names, subdir, test_name)
         print()
-        excerpt(submission, units.split(","))
+        for file in files:
+            if file:
+                excerpt(file, units.split(","))
+            else:
+                print(f"Missing file for {name}")
         print(f"/ {name} (END)")
         # break # DEBUG - Testing just on first entry for each
 
+def sample_munge():
+    columns = [[("jon", "q1"), ("mary", "q2"), ("nancy", "q3")],
+               [("mary", "r2"), ("xi", "r4")],
+               [("jon", "s1"), ("mary", "s2"), ("nancy", "s3")]]
+    joined =join_columns(columns)
+    print(joined)
 
 if __name__ == "__main__":
     main()
-
 
 
 
