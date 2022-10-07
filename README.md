@@ -1,7 +1,11 @@
 # Grader script for Python coding exams in Canvas
 
 
-This script is designed to test and excerpt a batch of Python programs downloaded from Canvas.  It was designed initially for exams in CIS 211 at U. Oregon in winter and spring 2020, but might be adapted for other coursework in computer science. 
+This script is designed to test and excerpt a batch of Python programs
+downloaded from Canvas.  It was designed initially for exams in CIS 211
+at U. Oregon in winter and spring 2020, later adapted for CS 210
+at UO, but might be adapted for other
+coursework in computer science. 
 
 The current version of `grader.py` is specific to 
 Python version 3 and the `unittest` testing framework. 
@@ -9,14 +13,27 @@ It is likely that it could be generalized, but I don't
 want to do so until I have a specific use case to guide 
 the work.  Contact me (michal@cs.uoregon.edu) if you 
 are interested in working with me on making it work 
-for program submissions in other programming languages. 
+for program submissions in other programming languages.
 
-`grader.py` is designed for use with the SpeedGrader feature of Canvas to grade file uploads containing program source code. It might conceivably be made to work with another LMS, but not trivially, because it relies on details like the way Canvas 
+Note 2022F: To eyeball standard output, just set `sys.stdout` to 
+`sys.stderr` in the testing script. Note this will cause voluminous
+output if a student has left extraneous print statements in their code.
+For CS 210 beginning projects we are doing without the unit testing 
+framework and just writing test scripts in Python.  
+
+`grader.py` is designed for use with the SpeedGrader feature of
+Canvas to grade file uploads containing program source code. It might
+conceivably be made to work with another LMS, but not trivially,
+because it relies on details like the way Canvas 
 mooshes student name and file name into a file name. 
 Some parts of this script might be usable in a grading 
 script adapted to another LMS. 
 
-`grader.py` assumes you want to run student code with a test suite, and that you also want to *read the code*, or at least an excerpt of the code.  If you want to grade student programs automatically without actually looking at their code, this is probably not the script for you. 
+`grader.py` assumes you want to run student code with a test suite,
+and that you also want to *read the code*, or at least an excerpt
+of the code.  If you want to grade student programs automatically
+without actually looking at their code, this is probably not
+the script for you. 
 
 ## What it does 
 
@@ -53,6 +70,8 @@ canon : expr.py,codegen_context.py   # Rename submission file to this
 dir : tests                          # The tests run in this directory
 excerpt_units : gen,LT
 tests: compile.py
+submissions_from: A
+submissions_to: C
 ```
 
 Note that `grader.py` permits line-ending comments, 
@@ -79,6 +98,11 @@ patterns may contain spaces but should not contain
 `#`, which would be treated as a comment in the `.ini` 
 file. 
 
+`submissions_from` and `submissions_to` are for grading just a range of
+student submissions from a large class.  The values are letters, and 
+the range is inclusive, so for example A-C includes both Anderson and 
+Cook.  Optional, but necessary for large classes (over 100 students) 
+and useful for dividing grading among TAs. 
 
 # Output
 

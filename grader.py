@@ -48,6 +48,25 @@ def submissions_for_problem(q_name: List[str])  -> List[Tuple[str, List[Path]]]:
     log.debug(f"\n***\nJoined submissions: {submissions}")
     return submissions
 
+def select_submissions(submissions: list[str, list],
+                       from_prefix: str, to_prefix: str
+                       ) -> list[str, list]:
+    """Select a subset of submissions by prefix of student name, e.g., "A"-"F"
+    Selection is inclusive and normalized to upper case, so a-f includes
+    "Albertson" and "Fernandez".
+    """
+    selected = []
+    from_prefix = from_prefix.upper()
+    sentinel = to_prefix.upper() + "zzz"
+    assert from_prefix <= to_prefix
+    in_range = False
+    for submission in sorted(submissions):
+        name, _ = submission
+        if name.upper() >= from_prefix and name.upper() <= sentinel:
+            selected.append(submission)
+    return selected
+
+
 def join_columns(cols: List[Tuple[str, Path]]) -> List[Tuple[str, List[Path]]]:
     """Convert from [[("jon", P), ("mary", Q)], [("jon", R), ("mary, S)], ...]
     to [("jon", [P, R, ...]), ("mary", [Q, S ...]), ...]
@@ -280,33 +299,6 @@ def excerpt(path: Path, units: List[str]):
         print("*** Exception while trying to excerpt")
         print(e)
 
-# Obsolete?
-def old_excerpt(path: Path, from_pat: str, to_pat: str):
-    """Print an excerpt of submitted code from
-    from_pat to to_pat.
-    """
-    try:
-        f = open(path)
-        copying = False
-        found = False
-        for line in f:
-            if re.search(from_pat, line):
-                copying = True
-                found = True
-            if copying:
-                if re.search(to_pat, line):
-                    copying = False
-                    break
-                else:
-                    print(line, end="")
-    except Exception as e:
-        print("*** Exception while trying to excerpt")
-        print(e)
-
-        if not found:
-            print("*** DID NOT FIND EXCERPT ***")
-        elif copying and to_pat != "NONE":
-            print(f"\n*** DID NOT FIND '{to_pat}'")
 
 def main():
     try:
@@ -315,10 +307,14 @@ def main():
         name_globs = config[problem]["glob"].split(",")
         canonical_names = config[problem]["canon"].split(",")
         subdir = config[problem]["dir"]
-        # excerpt_from = config[problem]["excerpt_from"]
-        # excerpt_to = config[problem]["excerpt_to"]
         units = config[problem]["excerpt_units"]
         test_name = config[problem]["tests"]
+        if "submissions_from" in config[problem]:
+            submissions_from = config[problem]["submissions_from"]
+            submissions_to = config[problem]["submissions_to"]
+        else:
+            submissions_from = None
+            submissions_to = None
     except KeyError as e:
         log.warning(f"{e}\nMissing entry in grader.ini")
         sys.exit(8)
@@ -327,6 +323,9 @@ def main():
     # name_table = roster_munge.read_table() # Now in submissions_for_problem
     submissions = submissions_for_problem(name_globs)
     assert submissions, f"No match for {name_globs}"
+    if submissions_from:
+        submissions = select_submissions(submissions, submissions_from, submissions_to)
+        assert submissions, f"No submissions in range {submissions_from}..{submissions_to}"
     for submission in submissions:
         # name = extract_student_name(submission, name_table)
         name, files = submission
