@@ -27,7 +27,7 @@ def configure(filename: str) -> configparser.ConfigParser:
     return conf
 
 
-def submissions_for_problem(q_name: List[str])  -> List[Tuple[str, List[Path]]]:
+def submissions_for_problem(q_name: List[str], dir="submissions")  -> List[Tuple[str, List[Path]]]:
     """q_name could be ["expr", "codegen_context"]
     Corresponding element in result could be
     ("Garcia Perez, Salvador", ["garciaperezsalvador_106692_10867445_expr-2.py",
@@ -36,7 +36,7 @@ def submissions_for_problem(q_name: List[str])  -> List[Tuple[str, List[Path]]]:
     tr_table = roster_munge.read_table()
     submission_lists = []
     for pattern in q_name:
-        submissions = Path(f"./submissions").glob(f"*{pattern}*.py")
+        submissions = Path(f"./{dir}").glob(f"*{pattern}*.py")
         additions = Path(f"./additional").glob(f"*{pattern}*.py")
         column = [(extract_student_name(p, tr_table), p) for p in list(submissions) + list(additions)]
         submission_lists.append(sorted(column))
@@ -188,7 +188,7 @@ def check_file(submission: Tuple[str, List[Path]],
                                timeout=5)
         print(f"Return code: {execution.returncode}")
         stderr = str(execution.stderr, 'utf-8', 'ignore')
-        print(f"Stderr: {stderr}")
+        print(f"Stderr: \n{stderr}")
     except Exception as e:
         print(f"Interrupted:  {e}")
 
@@ -200,7 +200,7 @@ def excerpt(path: Path, units: List[str]):
     units_disjunct = "|".join(units)
 
     # A class, function, or method definition is the first
-    # thing on a line.  It beings with "class" or "def", then
+    # thing on a line.  It begins with "class" or "def", then
     # one or more spaces followed by the name.
     start_pat_re = f"""
          ^(?P<indent>\\s*)             # Only indentation before it
@@ -254,18 +254,27 @@ def excerpt(path: Path, units: List[str]):
 
                 print(line.rstrip())  # Unit header line for class or function
 
-                # Subsequent lines:  Stop when we see a new
-                # unit that is NOT indented within current unit
-                # and is NOT of interest
+                # Subsequent lines:  Continue as long as they are indented to
+                # indicate inclusion in the current unit.
                 for more in lines:
                     line_num += 1
                     is_a_unit = next_unit.match(more)
+
+                    # Stop excerpting at dedent that is
+                    # not a comment and not a new unit
+                    if ((is_a_unit is None)
+                        and len(more.lstrip()) > 0
+                        and more.lstrip()[0] != "#"
+                        and  len(more) - len(more.lstrip()) <= indent):
+                        break
+
+                    #  Still within the same unit ... print and go on.
                     if not is_a_unit:
                         print(more.rstrip())
                         continue
+
                     # We've hit another unit. If it is indented
                     # within this one, we just continue
-                    #DEBUG
                     log.debug(f"Next unit '{is_a_unit.groups()}'")
                     fields = is_a_unit.groupdict()
                     if fields["indent"]:
@@ -309,6 +318,10 @@ def main():
         subdir = config[problem]["dir"]
         units = config[problem]["excerpt_units"]
         test_name = config[problem]["tests"]
+        if "submissions_dir" in config[problem]:
+            dir = config[problem]["submissions_dir"]
+        else:
+            dir = "submissions"
         if "submissions_from" in config[problem]:
             submissions_from = config[problem]["submissions_from"]
             submissions_to = config[problem]["submissions_to"]
@@ -321,7 +334,7 @@ def main():
 
     print(f"\nProblem: {name_globs} ({canonical_names})")
     # name_table = roster_munge.read_table() # Now in submissions_for_problem
-    submissions = submissions_for_problem(name_globs)
+    submissions = submissions_for_problem(name_globs, dir)
     assert submissions, f"No match for {name_globs}"
     if submissions_from:
         submissions = select_submissions(submissions, submissions_from, submissions_to)
@@ -343,12 +356,6 @@ def main():
         print(f"/ {name} (END)")
         # break # DEBUG - Testing just on first entry for each
 
-def sample_munge():
-    columns = [[("jon", "q1"), ("mary", "q2"), ("nancy", "q3")],
-               [("mary", "r2"), ("xi", "r4")],
-               [("jon", "s1"), ("mary", "s2"), ("nancy", "s3")]]
-    joined =join_columns(columns)
-    print(joined)
 
 if __name__ == "__main__":
     main()
