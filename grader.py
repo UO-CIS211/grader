@@ -36,9 +36,14 @@ def submissions_for_problem(q_name: List[str], dir="submissions")  -> List[Tuple
     tr_table = roster_munge.read_table()
     submission_lists = []
     for pattern in q_name:
-        submissions = Path(f"./{dir}").glob(f"*{pattern}*.py")
-        additions = Path(f"./additional").glob(f"*{pattern}*.py")
-        column = [(extract_student_name(p, tr_table), p) for p in list(submissions) + list(additions)]
+        glob_pat = f"*{pattern}*.py"
+        submissions = list(Path(f"./{dir}").glob(glob_pat))
+        if submissions:
+            log.debug(f"globbed '{glob_pat}' in ./{dir}, got {submissions}")
+        else:
+            log.warning(f"Did not find ./{dir}, or nothing there matching {glob_pat}")
+        additions = list(Path(f"./additional").glob(f"*{pattern}*.py"))
+        column = [(extract_student_name(p, tr_table), p) for p in submissions + additions]
         submission_lists.append(sorted(column))
     # Now we should have a column for each file, in the order they appear in q_name
     # Each entry in each column is (name, path)
@@ -46,7 +51,15 @@ def submissions_for_problem(q_name: List[str], dir="submissions")  -> List[Tuple
     log.debug(f"\n***\nSubmissions before joining: {submission_lists}")
     submissions = join_columns(submission_lists)
     log.debug(f"\n***\nJoined submissions: {submissions}")
-    return submissions
+    # Bug fix:  Some students didn't turn in some components of an assignment.
+    # Filter incomplete submissions
+    filtered = []
+    for student, paths in submissions:
+        if None in paths:
+            print(f"Incomplete submission for {student}")
+        else:
+            filtered.append((student, paths))
+    return filtered
 
 def select_submissions(submissions: list[str, list],
                        from_prefix: str, to_prefix: str
@@ -335,7 +348,7 @@ def main():
     print(f"\nProblem: {name_globs} ({canonical_names})")
     # name_table = roster_munge.read_table() # Now in submissions_for_problem
     submissions = submissions_for_problem(name_globs, dir)
-    assert submissions, f"No match for {name_globs}"
+    assert submissions, f"No match for {name_globs} in {dir}"
     if submissions_from:
         submissions = select_submissions(submissions, submissions_from, submissions_to)
         assert submissions, f"No submissions in range {submissions_from}..{submissions_to}"
